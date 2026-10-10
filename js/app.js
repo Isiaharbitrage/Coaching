@@ -5,7 +5,7 @@ import {
   signOut, sendPasswordResetEmail, updateProfile
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
 import {
-  getFirestore, initializeFirestore, doc, getDoc, setDoc, addDoc, updateDoc, deleteDoc, collection,
+  getFirestore, initializeFirestore, limit, doc, getDoc, setDoc, addDoc, updateDoc, deleteDoc, collection,
   onSnapshot, query, where, orderBy, serverTimestamp
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
@@ -64,7 +64,7 @@ if (configured) {
 /* ---------- État ---------- */
 const state = {
   user: null, isCoach: false,
-  debriefs: [], plays: [], qcmResults: [], allowed: [], quizzes: [], qcmRun: null,
+  debriefs: [], plays: [], qcmResults: [], allowed: [], quizzes: [], qcmRun: null, posts: [], replies: [], draft: { text: '', video: '', image: '' },
   view: 'debriefs', openDebriefId: null, selectedPlayId: null
 };
 let unsubs = [];
@@ -180,6 +180,12 @@ function startSubs() {
   unsubs.push(onSnapshot(query(collection(qdb, 'qcm_quizzes'), orderBy('numero', 'asc')), (s) => {
     state.quizzes = s.docs.map(d => ({ id: d.id, ...d.data() })); softRender();
   }, onErr));
+  unsubs.push(onSnapshot(query(collection(db, 'forumPosts'), orderBy('createdAt', 'desc'), limit(40)), (s) => {
+    state.posts = s.docs.map(d => ({ id: d.id, ...d.data() })); softRender();
+  }, onErr));
+  unsubs.push(onSnapshot(collection(db, 'forumReplies'), (s) => {
+    state.replies = s.docs.map(d => ({ id: d.id, ...d.data() })); softRender();
+  }, onErr));
   const qres = state.isCoach
     ? collection(db, 'qcmResults')
     : query(collection(db, 'qcmResults'), where('uid', '==', state.user.uid));
@@ -196,7 +202,7 @@ function startSubs() {
 
 /* ---------- Navigation / rendu ---------- */
 document.querySelectorAll('.nav-item').forEach(b => b.addEventListener('click', () => {
-  state.view = b.dataset.view; state.openDebriefId = null; state.qcmRun = null; render(); window.scrollTo(0, 0);
+  state.view = b.dataset.view; state.openDebriefId = null; state.qcmRun = null; render(); window.scrollTo(0, 0); window.scrollTo(0, 0);
 }));
 
 function softRender() {
@@ -212,6 +218,7 @@ function render() {
   if (state.view === 'debriefs') root.innerHTML = state.openDebriefId ? debriefDetailHtml() : debriefListHtml();
   else if (state.view === 'plays') root.innerHTML = playsHtml();
   else if (state.view === 'qcm') root.innerHTML = qcmHtml();
+  else if (state.view === 'forum') root.innerHTML = forumHtml();
   else if (state.view === 'coach' && state.isCoach) root.innerHTML = coachHtml();
 }
 
@@ -372,6 +379,82 @@ function qcmHtml() {
     ${quizzes.length > 1 ? `<div class="panel"><div class="panel-title"><span>QCM précédents</span></div>${quizzes.slice(1).map(quizRow).join('')}</div>` : ''}`;
 }
 
+/* ---------- Forum ---------- */
+const tsMs = (t) => (t && typeof t.toMillis === 'function') ? t.toMillis() : Date.now();
+const fmtTs = (t) => {
+  const d = new Date(tsMs(t));
+  const p = (n) => String(n).padStart(2, '0');
+  return `${p(d.getDate())}/${p(d.getMonth() + 1)}/${d.getFullYear()} à ${p(d.getHours())}:${p(d.getMinutes())}`;
+};
+const myName = () => state.user.displayName || (state.user.email || '').split('@')[0];
+const canDelete = (x) => state.isCoach || x.uid === state.user.uid;
+const authorHtml = (x) => `<strong>${esc(x.authorName || 'Arbitre')}</strong>${x.byCoach ? ' <span class="pill coach-pill">Coach</span>' : ''}`;
+const okImg = (d) => typeof d === 'string' && d.startsWith('data:image/jpeg;base64,');
+
+/* Image : réduite et compressée dans le navigateur (aucun stockage payant nécessaire) */
+function compressImage(file) {
+  return new Promise((resolve, reject) => {
+    if (!file || !file.type.startsWith('image/')) { reject(new Error('Ce fichier n\'est pas une image.')); return; }
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      for (const [maxSide, q] of [[1280, 0.72], [1024, 0.62], [800, 0.55]]) {
+        const k = Math.min(1, maxSide / Math.max(img.width, img.height));
+        const c = document.createElement('canvas');
+        c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+        const ctx = c.getContext('2d');
+        ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height);
+        ctx.drawImage(img, 0, 0, c.width, c.height);
+        const data = c.toDataURL('image/jpeg', q);
+        if (data.length <= 700000) { resolve(data); return; }
+      }
+      reject(new Error('Image trop lourde, choisis-en une plus petite.'));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Image illisible.')); };
+    img.src = url;
+  });
+}
+
+function forumHtml() {
+  const d = state.draft;
+  const posts = [...state.posts].sort((a, b) => tsMs(b.createdAt) - tsMs(a.createdAt));
+  return `
+    <div class="view-header"><div><h2 class="view-title">Forum</h2></div></div>
+    <div class="panel composer"><form data-form="new-post">
+      <textarea name="text" rows="3" maxlength="3000" placeholder="Pose une question, partage une situation…">${esc(d.text)}</textarea>
+      ${d.image ? `<div class="img-preview"><img src="${d.image}" alt=""><button type="button" class="btn-text" data-action="remove-draft-image">✕ Retirer l'image</button></div>` : ''}
+      <input type="url" name="video" class="video-input" placeholder="Lien d'une vidéo (YouTube, Google Drive, Vimeo) — facultatif" value="${esc(d.video)}">
+      <div class="composer-actions">
+        <label class="btn btn-ghost file-btn">📷 Ajouter une image<input type="file" id="forum-img" accept="image/*" hidden></label>
+        <button class="btn btn-primary" type="submit">Publier</button>
+      </div>
+    </form></div>
+    ${posts.length ? posts.map(postHtml).join('') : '<div class="panel"><div class="empty"><strong>Aucune publication pour l\'instant</strong>Lance la première discussion !</div></div>'}`;
+}
+
+function postHtml(p) {
+  const reps = state.replies.filter(r => r.postId === p.id).sort((a, b) => tsMs(a.createdAt) - tsMs(b.createdAt));
+  const vid = p.videoUrl ? (embedFromUrl(p.videoUrl) || (safeUrl(p.videoUrl) ? `<p style="margin-bottom:12px;"><a class="btn" href="${esc(safeUrl(p.videoUrl))}" target="_blank" rel="noopener noreferrer">▶ Ouvrir la vidéo</a></p>` : '')) : '';
+  return `
+  <article class="post-card">
+    <div class="post-top"><div>${authorHtml(p)}<div class="sub">${fmtTs(p.createdAt)}</div></div>
+      ${canDelete(p) ? `<button class="btn-text" data-action="delete-post" data-id="${esc(p.id)}">Supprimer</button>` : ''}</div>
+    ${p.text ? `<div class="comment-box post-text">${esc(p.text)}</div>` : ''}
+    ${okImg(p.imageData) ? `<img class="post-img" src="${p.imageData}" alt="Image publiée" data-action="zoom-img" data-id="${esc(p.id)}">` : ''}
+    ${vid}
+    <div class="comments">
+      ${reps.map(r => `<div class="comment"><div class="comment-head">${authorHtml(r)} <span class="sub">· ${fmtTs(r.createdAt)}</span>
+        ${canDelete(r) ? `<button class="btn-text" data-action="delete-reply" data-id="${esc(r.id)}">Supprimer</button>` : ''}</div>
+        <div class="comment-box">${esc(r.text)}</div></div>`).join('')}
+      <form class="comment-form" data-form="reply" data-id="${esc(p.id)}">
+        <input type="text" name="text" maxlength="2000" placeholder="Écrire un commentaire…" required autocomplete="off">
+        <button class="btn btn-primary" type="submit">Envoyer</button>
+      </form>
+    </div>
+  </article>`;
+}
+
 /* ---------- Espace coach ---------- */
 function coachHtml() {
   const refs = state.allowed.map(a => {
@@ -455,6 +538,12 @@ document.addEventListener('click', async (ev) => {
     else if (a === 'qcm-back') { state.qcmRun = null; render(); }
     else if (a === 'qcm-pick') { if (state.qcmRun) { state.qcmRun.selected = Number(id); render(); } }
     else if (a === 'qcm-validate') { await qcmValidate(); }
+    else if (a === 'remove-draft-image') { state.draft.image = ''; render(); }
+    else if (a === 'zoom-img') { const p = state.posts.find(x => x.id === id); if (p && okImg(p.imageData)) openModal(`<img src="${p.imageData}" alt="" style="width:100%;border-radius:6px;"><div class="modal-actions"><span></span><button class="btn btn-ghost" data-action="close-modal">Fermer</button></div>`); }
+    else if (a === 'delete-post') { if (confirm('Supprimer cette publication et ses commentaires ?')) {
+      await Promise.all(state.replies.filter(r => r.postId === id).map(r => deleteDoc(doc(db, 'forumReplies', r.id))));
+      await deleteDoc(doc(db, 'forumPosts', id)); showToast('Publication supprimée'); } }
+    else if (a === 'delete-reply') { if (confirm('Supprimer ce commentaire ?')) { await deleteDoc(doc(db, 'forumReplies', id)); showToast('Commentaire supprimé'); } }
     else if (a === 'close-modal') closeModal();
     else if (a === 'new-play') playModal(null);
     else if (a === 'edit-play') playModal(state.plays.find(p => p.id === id));
@@ -476,6 +565,23 @@ document.addEventListener('submit', async (ev) => {
       if (!email) return;
       await setDoc(doc(db, 'allowed', email), { email, name: String(f.name || '').trim(), addedAt: serverTimestamp() });
       form.reset(); showToast('Arbitre autorisé');
+    } else if (form.dataset.form === 'new-post') {
+      const text = String(f.text || '').trim(), video = String(f.video || '').trim(), image = state.draft.image || '';
+      if (!text && !video && !image) { showToast('Écris un message ou ajoute une image / vidéo'); return; }
+      if (video && !safeUrl(video)) { showToast('Lien vidéo invalide'); return; }
+      await addDoc(collection(db, 'forumPosts'), {
+        uid: state.user.uid, authorName: myName().slice(0, 60), byCoach: state.isCoach,
+        text, imageData: image, videoUrl: video, createdAt: serverTimestamp()
+      });
+      state.draft = { text: '', video: '', image: '' }; render(); showToast('Publié !');
+    } else if (form.dataset.form === 'reply') {
+      const text = String(f.text || '').trim();
+      if (!text) return;
+      await addDoc(collection(db, 'forumReplies'), {
+        postId: form.dataset.id, uid: state.user.uid, authorName: myName().slice(0, 60), byCoach: state.isCoach,
+        text, createdAt: serverTimestamp()
+      });
+      render();
     } else if (form.dataset.form === 'save-play') {
       const data = { title: f.title.trim(), date: f.date, videoUrl: (f.videoUrl || '').trim(), comment: f.comment || '' };
       if (data.videoUrl && !safeUrl(data.videoUrl)) { showToast('Lien vidéo invalide'); return; }
@@ -511,5 +617,19 @@ async function qcmValidate() {
     });
   } catch (e) { console.error(e); showToast("Résultat non enregistré : " + (e.code || e.message)); }
 }
+
+document.addEventListener('input', (e) => {
+  const t = e.target;
+  if (!t.closest || !t.closest('[data-form="new-post"]')) return;
+  if (t.name === 'text') state.draft.text = t.value;
+  if (t.name === 'video') state.draft.video = t.value;
+});
+document.addEventListener('change', async (e) => {
+  if (e.target.id !== 'forum-img') return;
+  const file = e.target.files && e.target.files[0];
+  if (!file) return;
+  try { state.draft.image = await compressImage(file); render(); }
+  catch (err) { showToast(err.message || 'Image impossible à ajouter'); }
+});
 
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('modal-backdrop').hidden) closeModal(); });

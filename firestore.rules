@@ -45,5 +45,28 @@ service cloud.firestore {
       allow create: if isMember() && request.resource.data.uid == request.auth.uid;
       allow update, delete: if isCoach();
     }
+
+    // Forum : publications (texte, image, lien vidéo) et commentaires
+    match /forumPosts/{id} {
+      allow read: if isMember();
+      allow create: if isMember()
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.byCoach == isCoach()
+        && request.resource.data.text is string && request.resource.data.text.size() <= 3000
+        && request.resource.data.imageData is string && request.resource.data.imageData.size() <= 800000
+        && request.resource.data.videoUrl is string && request.resource.data.videoUrl.size() <= 500;
+      allow delete: if isCoach() || (isMember() && resource.data.uid == request.auth.uid);
+      allow update: if false;
+    }
+
+    match /forumReplies/{id} {
+      allow read: if isMember();
+      allow create: if isMember()
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.byCoach == isCoach()
+        && request.resource.data.text is string && request.resource.data.text.size() > 0 && request.resource.data.text.size() <= 2000;
+      allow delete: if isCoach() || (isMember() && resource.data.uid == request.auth.uid);
+      allow update: if false;
+    }
   }
 }
