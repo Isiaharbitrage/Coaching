@@ -314,3 +314,67 @@ input, select, textarea{ font-family: inherit; }
 .inline-form{ display:flex; gap:8px; flex-wrap:wrap; }
 .inline-form input{ flex:1; min-width:160px; background: var(--bg); border:1px solid var(--border); border-radius: var(--radius); padding:9px 11px; color: var(--text); font-size:13.5px; }
 .btn-link{ text-decoration:none; }
+
+/* ---------- Logo / marque ---------- */
+.auth-logo{ display:block; height:64px; width:auto; margin:0 auto 20px; }
+.brand{ padding-bottom:28px; }
+.brand-logo{ height:34px; width:auto; display:block; }
+.main{ position:relative; }
+.main::after{
+  content:''; position:fixed; right:28px; bottom:22px; width:84px; height:52px;
+  background:url('../img/logo.png') center/contain no-repeat; opacity:.07; pointer-events:none;
+}
+
+/* ---------- Debrief : fiche match ---------- */
+.deb-hero{
+  position:relative; overflow:hidden; border:1px solid var(--border); border-radius:12px;
+  padding:28px 28px 24px; margin-bottom:20px;
+  background: linear-gradient(135deg, #1d2230 0%, #171b24 55%, #20160f 100%);
+}
+.deb-hero::before{
+  content:''; position:absolute; right:-10px; top:50%; transform:translateY(-50%); width:210px; height:132px;
+  background:url('../img/logo.png') center/contain no-repeat; opacity:.08; pointer-events:none;
+}
+.deb-hero::after{ content:''; position:absolute; left:0; top:0; bottom:0; width:4px; background:var(--accent); }
+.deb-kicker{ font-family:var(--font-display); font-size:12px; letter-spacing:1.4px; text-transform:uppercase; color:var(--accent-2); margin-bottom:8px; }
+.deb-title{ font-size:30px; line-height:1.15; margin-bottom:14px; position:relative; }
+.deb-pills{ display:flex; gap:8px; flex-wrap:wrap; position:relative; }
+.pill{ font-size:12.5px; padding:5px 12px; border-radius:999px; border:1px solid var(--border); background:rgba(255,255,255,.04); color:var(--text-muted); }
+.pill strong{ color:var(--text); font-weight:600; }
+.deb-back{ margin-bottom:16px; }
+.drive-box{
+  border:1px solid rgba(232,96,12,.45); background: linear-gradient(135deg, rgba(232,96,12,.14), rgba(232,96,12,.04));
+  border-radius:12px; padding:20px 22px;
+}
+.drive-box-text strong{ font-size:17px; }
+.drive-box-text span{ font-size:13px; }
+.deb-card{ background:var(--bg-elevated); border:1px solid var(--border); border-radius:12px; overflow:hidden; }
+.deb-card-head{ padding:16px 20px; border-bottom:1px solid var(--border); font-family:var(--font-display); font-size:15px; letter-spacing:.3px; display:flex; justify-content:space-between; align-items:center; }
+.deb-card-head span{ font-size:12px; color:var(--text-faint); font-family:var(--font-body); }
+.deb-table{ min-width:820px; }
+.deb-table th{ background:rgba(255,255,255,.025); padding:11px 14px; }
+.deb-table td{ padding:13px 14px; vertical-align:middle; }
+.deb-table tbody tr:nth-child(even) td{ background:rgba(255,255,255,.015); }
+.deb-num{ display:inline-flex; width:26px; height:26px; align-items:center; justify-content:center; border-radius:50%; background:var(--bg); border:1px solid var(--border); font-family:var(--font-display); font-size:12px; color:var(--text-muted); }
+.cds-pill{ display:inline-block; min-width:44px; text-align:center; padding:3px 10px; border-radius:6px; font-family:var(--font-display); font-size:12.5px; letter-spacing:.4px; border:1px solid var(--border); }
+.cds-good{ color:var(--positive); background:var(--positive-soft); border-color:rgba(76,175,125,.35); }
+.cds-bad{ color:#ff8f8f; background:rgba(255,90,90,.12); border-color:rgba(255,90,90,.35); }
+.cds-warn{ color:var(--warning); background:var(--warning-soft); border-color:rgba(228,185,78,.35); }
+.clip-btn{ display:inline-flex; align-items:center; gap:6px; padding:4px 12px; border-radius:999px; background:var(--accent-soft); color:var(--accent-2); text-decoration:none; font-size:12.5px; font-weight:600; border:1px solid rgba(232,96,12,.35); }
+.clip-btn:hover{ background:var(--accent); color:#1a0d02; }
+.muted-cell{ color:var(--text-faint); }
+
+/* ---------- Plays empilés ---------- */
+.play-card{ background:var(--bg-elevated); border:1px solid var(--border); border-radius:12px; padding:22px; margin-bottom:24px; }
+.play-head{ display:flex; justify-content:space-between; align-items:baseline; gap:12px; margin-bottom:16px; flex-wrap:wrap; }
+.play-head h3{ font-size:19px; }
+.play-date{ font-family:var(--font-display); font-size:13px; color:var(--accent-2); letter-spacing:.5px; }
+
+@media (max-width: 880px){
+  .sidebar-top{ display:block; }
+  .brand{ padding:0 8px 0 0; }
+  .brand-name{ display:none; }
+  .brand-logo{ height:26px; }
+  .main::after{ display:none; }
+  .deb-title{ font-size:24px; }
+}

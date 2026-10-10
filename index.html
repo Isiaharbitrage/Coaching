@@ -7,6 +7,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="icon" type="image/png" href="img/favicon.png">
+<link rel="apple-touch-icon" href="img/favicon.png">
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -14,9 +16,7 @@
 <!-- Chargement initial -->
 <div id="loading-screen" class="auth-screen">
   <div class="auth-card" style="text-align:center;">
-    <div class="auth-mark" style="justify-content:center; margin: 0 auto 18px;">
-      <span class="stripe"></span><span class="stripe"></span><span class="stripe"></span>
-    </div>
+    <img class="auth-logo" src="img/logo.png" alt="WR">
     <h1>Espace coaching</h1>
     <p class="auth-sub" style="margin-bottom:0;">Chargement…</p>
   </div>
@@ -25,9 +25,7 @@
 <!-- Connexion -->
 <div id="login-screen" class="auth-screen" hidden>
   <div class="auth-card">
-    <div class="auth-mark">
-      <span class="stripe"></span><span class="stripe"></span><span class="stripe"></span>
-    </div>
+    <img class="auth-logo" src="img/logo.png" alt="WR">
     <h1>Espace coaching</h1>
     <p class="auth-sub">Retrouve tes debriefs, le play de la semaine et les QCM.</p>
 
@@ -57,9 +55,7 @@
 <!-- Compte créé mais pas encore autorisé -->
 <div id="pending-screen" class="auth-screen" hidden>
   <div class="auth-card" style="text-align:center;">
-    <div class="auth-mark" style="justify-content:center; margin: 0 auto 18px;">
-      <span class="stripe"></span><span class="stripe"></span><span class="stripe"></span>
-    </div>
+    <img class="auth-logo" src="img/logo.png" alt="WR">
     <h1>Accès en attente</h1>
     <p class="auth-sub">Ton compte <strong id="pending-email"></strong> est créé, mais ton coach ne l'a pas encore activé. Dès que c'est fait, clique sur « Vérifier à nouveau ».</p>
     <button id="pending-check" class="btn btn-primary btn-block" type="button">Vérifier à nouveau</button>
@@ -72,12 +68,12 @@
   <aside class="sidebar">
     <div class="sidebar-top">
       <div class="brand">
-        <span class="stripe"></span><span class="stripe"></span><span class="stripe"></span>
+        <img class="brand-logo" src="img/logo.png" alt="WR">
         <span class="brand-name">Coaching</span>
       </div>
     </div>
     <nav class="nav">
-      <button class="nav-item active" data-view="debriefs"><span class="nav-num">01</span> Mes debriefs</button>
+      <button class="nav-item active" data-view="debriefs"><span class="nav-num">01</span> Debriefing Perso NM1</button>
       <button class="nav-item" data-view="plays"><span class="nav-num">02</span> Play de la semaine</button>
       <button class="nav-item" data-view="qcm"><span class="nav-num">03</span> QCM</button>
       <button class="nav-item" data-view="coach" id="coach-nav" hidden><span class="nav-num">04</span> Espace coach</button>

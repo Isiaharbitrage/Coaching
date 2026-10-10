@@ -223,30 +223,63 @@ function debriefListHtml() {
       <span class="chev">›</span>
     </div>`).join('');
   return `
-    <div class="view-header"><div><h2 class="view-title">Mes debriefs</h2><p class="view-sub">Les analyses play by play publiées par ton coach.</p></div></div>
+    <div class="view-header"><div><h2 class="view-title">Debriefing Perso NM1</h2></div></div>
     <div class="panel">${rows || '<div class="empty"><strong>Aucun debrief pour l\'instant</strong>Ils apparaîtront ici dès que ton coach en publiera.</div>'}</div>`;
 }
+
+function cdsClass(v) {
+  const x = String(v || '').trim().toUpperCase();
+  if (x === 'CC') return 'cds-good';
+  if (x === 'IC' || x === 'MC') return 'cds-bad';
+  if (x === 'INC') return 'cds-warn';
+  return '';
+}
+function timingClass(v) {
+  const x = String(v || '').trim().toLowerCase();
+  if (/^(bon|good|oui|ok)/.test(x)) return 'cds-good';
+  if (/^(mauvais|bad|non|mauv)/.test(x)) return 'cds-bad';
+  return '';
+}
+const cell = (v) => v ? esc(v) : '<span class="muted-cell">—</span>';
 
 function debriefDetailHtml() {
   const d = state.debriefs.find(x => x.id === state.openDebriefId);
   if (!d) { state.openDebriefId = null; return debriefListHtml(); }
   const link = safeUrl(d.driveLink);
-  const body = (d.rows || []).map(r => `
+  const rows = d.rows || [];
+  const body = rows.map(r => {
+    const clip = safeUrl(r.clip);
+    return `
     <tr>
-      <td>${safeUrl(r.clip) ? `<a href="${esc(safeUrl(r.clip))}" target="_blank" rel="noopener noreferrer">▶ Clip</a>` : esc(r.clip || '')}</td>
-      <td>${esc(r.num)}</td><td>${esc(r.cds)}</td><td>${esc(r.timing)}</td><td>${esc(r.bonTiming)}</td>
-      <td>${esc(r.nature)}</td><td>${esc(r.detail)}</td><td>${esc(r.iotMeca)}</td>
-    </tr>`).join('');
+      <td>${clip ? `<a class="clip-btn" href="${esc(clip)}" target="_blank" rel="noopener noreferrer">▶ Clip</a>` : cell(r.clip)}</td>
+      <td><span class="deb-num">${esc(r.num)}</span></td>
+      <td>${r.cds ? `<span class="cds-pill ${cdsClass(r.cds)}">${esc(r.cds)}</span>` : cell('')}</td>
+      <td>${cell(r.timing)}</td>
+      <td>${r.bonTiming ? `<span class="cds-pill ${timingClass(r.bonTiming)}">${esc(r.bonTiming)}</span>` : cell('')}</td>
+      <td>${cell(r.nature)}</td>
+      <td>${cell(r.detail)}</td>
+      <td>${cell(r.iotMeca)}</td>
+    </tr>`;
+  }).join('');
   return `
-    <div class="view-header">
-      <div><h2 class="view-title">${esc(d.title || 'Debrief')}</h2><p class="view-sub">${fmtDate(d.date)}${d.niveau ? ' · ' + esc(d.niveau) : ''}</p></div>
-      <button class="btn btn-ghost" data-action="back-debriefs">← Retour</button>
+    <button class="btn btn-ghost deb-back" data-action="back-debriefs">← Tous les matchs</button>
+    <div class="deb-hero">
+      <div class="deb-kicker">Debriefing Perso NM1</div>
+      <h2 class="deb-title">${esc(d.title || 'Debrief')}</h2>
+      <div class="deb-pills">
+        ${d.date ? `<span class="pill">${fmtDate(d.date)}</span>` : ''}
+        ${d.niveau ? `<span class="pill"><strong>${esc(d.niveau)}</strong></span>` : ''}
+        <span class="pill"><strong>${rows.length}</strong> action${rows.length > 1 ? 's' : ''} analysée${rows.length > 1 ? 's' : ''}</span>
+      </div>
     </div>
-    ${link ? `<div class="drive-box"><div class="drive-box-text"><strong>Clips du match</strong><span>Tous les extraits vidéo sont dans le dossier Google Drive.</span></div><a class="btn btn-primary btn-link" href="${esc(link)}" target="_blank" rel="noopener noreferrer">Ouvrir le dossier Drive</a></div>` : ''}
-    <div class="panel"><div class="table-scroll"><table class="deb-table">
-      <thead><tr><th>Clip</th><th>#</th><th>CDS</th><th>Timing</th><th>Bon timing</th><th>Nature</th><th>Détail</th><th>IOT / MÉCA</th></tr></thead>
-      <tbody>${body || '<tr><td colspan="8"><div class="empty">Aucune action renseignée.</div></td></tr>'}</tbody>
-    </table></div></div>`;
+    ${link ? `<div class="drive-box" style="margin-bottom:20px;"><div class="drive-box-text"><strong>Les clips du match</strong><span>Retrouve tous les extraits vidéo dans le dossier Google Drive.</span></div><a class="btn btn-primary btn-link" href="${esc(link)}" target="_blank" rel="noopener noreferrer">Ouvrir le dossier Drive ↗</a></div>` : ''}
+    <div class="deb-card">
+      <div class="deb-card-head">Analyse play by play<span>${rows.length} ligne${rows.length > 1 ? 's' : ''}</span></div>
+      <div class="table-scroll"><table class="deb-table">
+        <thead><tr><th>Clip</th><th>#</th><th>CDS</th><th>Timing</th><th>Bon timing</th><th>Nature</th><th>Détail</th><th>IOT / MÉCA</th></tr></thead>
+        <tbody>${body || '<tr><td colspan="8"><div class="empty">Aucune action renseignée.</div></td></tr>'}</tbody>
+      </table></div>
+    </div>`;
 }
 
 /* ---------- Play de la semaine ---------- */
@@ -254,30 +287,26 @@ function playBlock(p) {
   const emb = embedFromUrl(p.videoUrl);
   const link = safeUrl(p.videoUrl);
   return `
-    <div class="panel">
-      <div class="panel-title"><span>${esc(p.title || 'Play de la semaine')}</span><span class="sub" style="color:var(--text-faint);font-size:12px;">${fmtDate(p.date)}</span></div>
+    <article class="play-card">
+      <div class="play-head"><h3>${esc(p.title || 'Play de la semaine')}</h3><span class="play-date">${fmtDate(p.date)}</span></div>
       ${emb || (link ? `<p style="margin-bottom:14px;"><a class="btn" href="${esc(link)}" target="_blank" rel="noopener noreferrer">▶ Ouvrir la vidéo</a></p>` : '')}
       ${p.comment ? `<div class="comment-box">${esc(p.comment)}</div>` : ''}
-    </div>`;
+    </article>`;
 }
 function playsHtml() {
-  const sel = state.plays.find(p => p.id === state.selectedPlayId) || state.plays[0];
-  const others = state.plays.filter(p => !sel || p.id !== sel.id);
   return `
-    <div class="view-header"><div><h2 class="view-title">Play de la semaine</h2><p class="view-sub">Une situation à regarder et à commenter.</p></div></div>
-    ${sel ? playBlock(sel) : '<div class="panel"><div class="empty"><strong>Pas encore de play</strong>Reviens bientôt.</div></div>'}
-    ${others.length ? `<div class="panel"><div class="panel-title"><span>Plays précédents</span></div>${others.map(p => `
-      <div class="list-row clickable" data-action="select-play" data-id="${esc(p.id)}">
-        <div><div>${esc(p.title || 'Play')}</div><div class="sub">${fmtDate(p.date)}</div></div><span class="chev">›</span>
-      </div>`).join('')}</div>` : ''}`;
+    <div class="view-header"><div><h2 class="view-title">Play de la semaine</h2></div></div>
+    ${state.plays.length ? state.plays.map(playBlock).join('') : '<div class="panel"><div class="empty"><strong>Pas encore de play</strong>Reviens bientôt.</div></div>'}`;
 }
 
 /* ---------- QCM ---------- */
 function avgOf(list) {
   const valid = list.filter(r => r.total > 0);
   if (!valid.length) return null;
-  return Math.round(valid.reduce((s, r) => s + r.score / r.total, 0) / valid.length * 100);
+  return valid.reduce((s, r) => s + r.score / r.total * 10, 0) / valid.length;
 }
+const fmtAvg = (v) => (Math.round(v * 10) / 10).toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 1 });
+
 const myResults = () => state.isCoach ? state.qcmResults.filter(r => r.uid === state.user.uid) : state.qcmResults;
 const resultFor = (quizId) => myResults().find(r => r.qcmId === quizId);
 const quizLabel = (q) => `QCM n°${q.numero} — ${q.titre}`;
@@ -334,7 +363,7 @@ function qcmHtml() {
     <div class="panel">
       <div class="panel-title"><span>Ma moyenne</span></div>
       ${avg === null ? '<div class="empty" style="padding:14px 0;"><strong>Aucun QCM réalisé</strong>Ta moyenne s\'affichera ici.</div>'
-        : `<div class="big-avg">${avg}%</div><p class="view-sub">sur ${mine.length} QCM réalisé${mine.length > 1 ? 's' : ''}</p>`}
+        : `<div class="big-avg">${fmtAvg(avg)}<span style="font-size:22px;color:var(--text-muted);"> /10</span></div><p class="view-sub">sur ${mine.length} QCM réalisé${mine.length > 1 ? 's' : ''}</p>`}
     </div>
     <div class="panel">
       <div class="panel-title"><span>QCM de la semaine</span></div>
@@ -349,7 +378,7 @@ function coachHtml() {
     const res = state.qcmResults.filter(r => (r.email || '').toLowerCase() === a.id);
     const avg = avgOf(res);
     return `<div class="list-row">
-      <div><div>${esc(a.name || a.id)}</div><div class="sub">${esc(a.id)} · ${avg === null ? 'aucun QCM' : `moyenne ${avg}% (${res.length} QCM)`}</div></div>
+      <div><div>${esc(a.name || a.id)}</div><div class="sub">${esc(a.id)} · ${avg === null ? 'aucun QCM' : `moyenne ${fmtAvg(avg)}/10 (${res.length} QCM)`}</div></div>
       <button class="btn btn-ghost btn-danger" data-action="remove-allowed" data-id="${esc(a.id)}">Retirer</button></div>`;
   }).join('');
   const plays = state.plays.map(p => `<div class="list-row">
@@ -415,7 +444,6 @@ document.addEventListener('click', async (ev) => {
   try {
     if (a === 'open-debrief') { state.openDebriefId = id; render(); window.scrollTo(0, 0); }
     else if (a === 'back-debriefs') { state.openDebriefId = null; render(); }
-    else if (a === 'select-play') { state.selectedPlayId = id; render(); window.scrollTo(0, 0); }
     else if (a === 'qcm-start') {
       const quiz = state.quizzes.find(x => x.id === id);
       if (quiz && !resultFor(id)) { state.qcmRun = { quiz, idx: 0, answers: [], selected: null }; render(); window.scrollTo(0, 0); }
