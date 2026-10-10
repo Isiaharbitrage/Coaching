@@ -12,3 +12,13 @@ export const firebaseConfig = {
 
 // Adresse e-mail du coach (identique à celle des règles Firestore).
 export const COACH_EMAIL = "isiah.schmidt@hotmail.fr";
+
+// Projet Firebase du site QCM (lecture seule : les QCM publiés sont lus ici).
+export const qcmConfig = {
+  apiKey: "AIzaSyBZVKzKKwXgmlj8ikREFdXkH7PQFUD525Y",
+  authDomain: "qcmbasket.firebaseapp.com",
+  projectId: "qcmbasket",
+  storageBucket: "qcmbasket.firebasestorage.app",
+  messagingSenderId: "21050951258",
+  appId: "1:21050951258:web:3cc90457e7fca8df74ba63"
+};

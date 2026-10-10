@@ -1,11 +1,11 @@
-import { firebaseConfig, COACH_EMAIL } from './firebase-config.js';
+import { firebaseConfig, COACH_EMAIL, qcmConfig } from './firebase-config.js';
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
 import {
   getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword,
   signOut, sendPasswordResetEmail, updateProfile
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
 import {
-  getFirestore, doc, getDoc, setDoc, addDoc, updateDoc, deleteDoc, collection,
+  getFirestore, initializeFirestore, doc, getDoc, setDoc, addDoc, updateDoc, deleteDoc, collection,
   onSnapshot, query, where, orderBy, serverTimestamp
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
@@ -51,17 +51,20 @@ function embedFromUrl(raw) {
 
 /* ---------- Firebase ---------- */
 const configured = firebaseConfig.apiKey && !firebaseConfig.apiKey.startsWith('COLLE_');
-let auth = null, db = null;
+let auth = null, db = null, qdb = null;
 if (configured) {
   const app = initializeApp(firebaseConfig);
   auth = getAuth(app);
   db = getFirestore(app);
+  // Projet Firebase du site QCM (lecture seule des QCM publiés)
+  const qapp = initializeApp(qcmConfig, 'qcm');
+  qdb = initializeFirestore(qapp, { experimentalAutoDetectLongPolling: true });
 }
 
 /* ---------- État ---------- */
 const state = {
   user: null, isCoach: false,
-  debriefs: [], plays: [], qcmResults: [], allowed: [],
+  debriefs: [], plays: [], qcmResults: [], allowed: [], quizzes: [], qcmRun: null,
   view: 'debriefs', openDebriefId: null, selectedPlayId: null
 };
 let unsubs = [];
@@ -174,6 +177,9 @@ function startSubs() {
   unsubs.push(onSnapshot(query(collection(db, 'plays'), orderBy('date', 'desc')), (s) => {
     state.plays = s.docs.map(d => ({ id: d.id, ...d.data() })); softRender();
   }, onErr));
+  unsubs.push(onSnapshot(query(collection(qdb, 'qcm_quizzes'), orderBy('numero', 'asc')), (s) => {
+    state.quizzes = s.docs.map(d => ({ id: d.id, ...d.data() })); softRender();
+  }, onErr));
   const qres = state.isCoach
     ? collection(db, 'qcmResults')
     : query(collection(db, 'qcmResults'), where('uid', '==', state.user.uid));
@@ -190,7 +196,7 @@ function startSubs() {
 
 /* ---------- Navigation / rendu ---------- */
 document.querySelectorAll('.nav-item').forEach(b => b.addEventListener('click', () => {
-  state.view = b.dataset.view; state.openDebriefId = null; render();
+  state.view = b.dataset.view; state.openDebriefId = null; state.qcmRun = null; render();
 }));
 
 function softRender() {
@@ -272,9 +278,57 @@ function avgOf(list) {
   if (!valid.length) return null;
   return Math.round(valid.reduce((s, r) => s + r.score / r.total, 0) / valid.length * 100);
 }
+const myResults = () => state.isCoach ? state.qcmResults.filter(r => r.uid === state.user.uid) : state.qcmResults;
+const resultFor = (quizId) => myResults().find(r => r.qcmId === quizId);
+const quizLabel = (q) => `QCM n°${q.numero} — ${q.titre}`;
+const optLabel = (q, i) => (q.options && q.options[i] != null) ? q.options[i] : '—';
+
+function detailHtml(quiz, answers) {
+  return quiz.questions.map((q, i) => {
+    const given = answers[i], ok = given === q.bonneReponse;
+    return `<div class="list-row" style="flex-direction:column;align-items:flex-start;">
+      <div><strong>${i + 1}.</strong> ${esc(q.texte)}</div>
+      <div class="sub">Ta réponse : <strong style="color:${ok ? 'var(--positive)' : '#ff8f8f'}">${esc(optLabel(q, given))}</strong> — ${ok ? 'Correct' : 'Incorrect'}</div>
+      ${ok ? '' : `<div class="sub">Bonne réponse : <strong>${esc(optLabel(q, q.bonneReponse))}</strong></div>${q.explication ? `<div class="sub">${esc(q.explication)}</div>` : ''}`}
+    </div>`;
+  }).join('');
+}
+
+function qcmRunHtml() {
+  const run = state.qcmRun, quiz = run.quiz, total = quiz.questions.length;
+  if (run.review || run.finished) {
+    const score = run.finished ? run.score : (resultFor(quiz.id)?.score ?? 0);
+    return `
+      <div class="view-header"><div><h2 class="view-title">${esc(quizLabel(quiz))}</h2><p class="view-sub">Résultat</p></div>
+        <button class="btn btn-ghost" data-action="qcm-back">← Retour</button></div>
+      <div class="panel"><div class="big-avg">${score}/${total}</div></div>
+      <div class="panel"><div class="panel-title"><span>Détail des réponses</span></div>${detailHtml(quiz, run.answers)}</div>`;
+  }
+  const q = quiz.questions[run.idx];
+  return `
+    <div class="view-header"><div><h2 class="view-title">${esc(quizLabel(quiz))}</h2><p class="view-sub">Question ${run.idx + 1}/${total}</p></div>
+      <button class="btn btn-ghost" data-action="qcm-back">Abandonner</button></div>
+    <div class="panel">
+      <p style="font-size:16px;line-height:1.6;margin-bottom:18px;">${esc(q.texte)}</p>
+      ${q.options.map((o, i) => `<div class="list-row clickable" data-action="qcm-pick" data-id="${i}" style="${run.selected === i ? 'border:1px solid var(--accent);background:var(--accent-soft);border-radius:6px;' : ''}"><div>${esc(o)}</div></div>`).join('')}
+      <div style="margin-top:18px;"><button class="btn btn-primary" data-action="qcm-validate" ${run.selected == null ? 'disabled' : ''}>${run.idx + 1 < total ? 'Valider ma réponse' : 'Terminer le QCM'}</button></div>
+    </div>`;
+}
+
 function qcmHtml() {
-  const mine = state.isCoach ? state.qcmResults.filter(r => r.uid === state.user.uid) : state.qcmResults;
+  if (state.qcmRun) return qcmRunHtml();
+  const mine = myResults();
   const avg = avgOf(mine);
+  const quizzes = [...state.quizzes].sort((a, b) => (b.numero || 0) - (a.numero || 0));
+  const latest = quizzes[0];
+  const quizRow = (q) => {
+    const r = resultFor(q.id);
+    return `<div class="list-row">
+      <div><div>${esc(quizLabel(q))}</div><div class="sub">${r ? `Réalisé : ${esc(r.score)}/${esc(r.total)}` : 'Pas encore réalisé'}</div></div>
+      ${r ? `<button class="btn btn-ghost" data-action="qcm-review" data-id="${esc(q.id)}">Revoir</button>`
+          : `<button class="btn btn-primary" data-action="qcm-start" data-id="${esc(q.id)}">Commencer</button>`}
+    </div>`;
+  };
   return `
     <div class="view-header"><div><h2 class="view-title">QCM</h2><p class="view-sub">Le QCM de la semaine et ta progression.</p></div></div>
     <div class="panel">
@@ -284,13 +338,9 @@ function qcmHtml() {
     </div>
     <div class="panel">
       <div class="panel-title"><span>QCM de la semaine</span></div>
-      <div class="empty"><strong>Bientôt disponible</strong>Le QCM de la semaine sera chargé ici automatiquement.</div>
+      ${latest ? quizRow(latest) : '<div class="empty" style="padding:14px 0;"><strong>Aucun QCM publié</strong>Reviens bientôt.</div>'}
     </div>
-    <div class="panel">
-      <div class="panel-title"><span>Historique</span></div>
-      ${mine.length ? mine.map(r => `<div class="list-row"><div><div>${esc(r.qcmTitle || 'QCM')}</div><div class="sub">${fmtDate(r.date)}</div></div><strong>${esc(r.score)}/${esc(r.total)}</strong></div>`).join('')
-        : '<div class="empty" style="padding:14px 0;">Rien pour l\'instant.</div>'}
-    </div>`;
+    ${quizzes.length > 1 ? `<div class="panel"><div class="panel-title"><span>QCM précédents</span></div>${quizzes.slice(1).map(quizRow).join('')}</div>` : ''}`;
 }
 
 /* ---------- Espace coach ---------- */
@@ -366,6 +416,17 @@ document.addEventListener('click', async (ev) => {
     if (a === 'open-debrief') { state.openDebriefId = id; render(); window.scrollTo(0, 0); }
     else if (a === 'back-debriefs') { state.openDebriefId = null; render(); }
     else if (a === 'select-play') { state.selectedPlayId = id; render(); window.scrollTo(0, 0); }
+    else if (a === 'qcm-start') {
+      const quiz = state.quizzes.find(x => x.id === id);
+      if (quiz && !resultFor(id)) { state.qcmRun = { quiz, idx: 0, answers: [], selected: null }; render(); window.scrollTo(0, 0); }
+    }
+    else if (a === 'qcm-review') {
+      const quiz = state.quizzes.find(x => x.id === id), r = resultFor(id);
+      if (quiz && r) { state.qcmRun = { quiz, review: true, answers: r.answers || [] }; render(); window.scrollTo(0, 0); }
+    }
+    else if (a === 'qcm-back') { state.qcmRun = null; render(); }
+    else if (a === 'qcm-pick') { if (state.qcmRun) { state.qcmRun.selected = Number(id); render(); } }
+    else if (a === 'qcm-validate') { await qcmValidate(); }
     else if (a === 'close-modal') closeModal();
     else if (a === 'new-play') playModal(null);
     else if (a === 'edit-play') playModal(state.plays.find(p => p.id === id));
@@ -401,5 +462,26 @@ document.addEventListener('submit', async (ev) => {
     }
   } catch (e) { console.error(e); showToast('Enregistrement impossible : ' + (e.code || e.message)); }
 });
+
+
+async function qcmValidate() {
+  const run = state.qcmRun;
+  if (!run || run.selected == null) return;
+  run.answers.push(run.selected);
+  run.selected = null;
+  const quiz = run.quiz;
+  if (run.idx + 1 < quiz.questions.length) { run.idx++; render(); window.scrollTo(0, 0); return; }
+  const score = quiz.questions.reduce((s, q, i) => s + (run.answers[i] === q.bonneReponse ? 1 : 0), 0);
+  run.finished = true; run.score = score;
+  render(); window.scrollTo(0, 0);
+  try {
+    await setDoc(doc(db, 'qcmResults', `${state.user.uid}_${quiz.id}`), {
+      uid: state.user.uid, email: (state.user.email || '').toLowerCase(),
+      name: state.user.displayName || '', qcmId: quiz.id, qcmTitle: quizLabel(quiz),
+      qcmNumero: quiz.numero || 0, score, total: quiz.questions.length,
+      answers: run.answers, date: todayISO()
+    });
+  } catch (e) { console.error(e); showToast("Résultat non enregistré : " + (e.code || e.message)); }
+}
 
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('modal-backdrop').hidden) closeModal(); });
