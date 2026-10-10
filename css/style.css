@@ -378,3 +378,78 @@ input, select, textarea{ font-family: inherit; }
   .main::after{ display:none; }
   .deb-title{ font-size:24px; }
 }
+
+/* ---------- Nav mobile ---------- */
+.nav-ico, .nav-short{ display:none; }
+.list-row > div{ min-width:0; }
+
+/* ---------- Mobile ---------- */
+@media (max-width: 880px){
+  body{ font-size:15px; }
+  .app{ display:block; min-height:100vh; }
+  .sidebar{ display:contents; }
+  .sidebar-top{
+    display:flex; align-items:center; position:sticky; top:0; z-index:30; height:56px;
+    padding:0 16px; padding-top:env(safe-area-inset-top); background:rgba(23,27,36,.94);
+    backdrop-filter:blur(10px); border-bottom:1px solid var(--border);
+  }
+  .brand{ padding:0; gap:10px; }
+  .brand-logo{ height:28px; }
+  .brand-name{ display:inline; font-size:17px; letter-spacing:2px; margin-left:0; }
+  .sidebar-bottom{ position:fixed; top:0; right:0; z-index:31; height:56px; padding:env(safe-area-inset-top) 16px 0 0; border:none; display:flex; align-items:center; }
+  .user-chip{ display:none; }
+  .sidebar-bottom .btn-text{ font-size:12.5px; padding:7px 12px; border:1px solid var(--border); border-radius:999px; background:var(--bg-elevated-2); color:var(--text-muted); }
+
+  .nav{
+    position:fixed; left:0; right:0; bottom:0; z-index:40; flex-direction:row; gap:0; flex:none;
+    background:rgba(23,27,36,.97); backdrop-filter:blur(10px); border-top:1px solid var(--border);
+    padding:6px 4px calc(6px + env(safe-area-inset-bottom));
+  }
+  .nav-item{
+    flex:1; min-width:0; flex-direction:column; justify-content:center; gap:3px; padding:7px 2px;
+    border-left:none; border-radius:10px; text-align:center;
+  }
+  .nav-item.active{ background:var(--accent-soft); border-left:none; }
+  .nav-num, .nav-label{ display:none; }
+  .nav-ico{ display:block; font-size:19px; line-height:1; filter:grayscale(.4); }
+  .nav-item.active .nav-ico{ filter:none; }
+  .nav-short{ display:block; font-size:10.5px; font-family:var(--font-display); letter-spacing:.3px; white-space:nowrap; }
+
+  .main{ padding:20px 16px calc(96px + env(safe-area-inset-bottom)); max-width:none; }
+  .main::after{ display:none; }
+  .view-header{ margin-bottom:20px; align-items:stretch; }
+  .view-header .btn{ width:100%; justify-content:center; }
+  .view-title{ font-size:23px; }
+  .panel{ padding:16px; margin-bottom:16px; border-radius:10px; }
+  .play-card{ padding:14px; border-radius:10px; margin-bottom:18px; }
+  .big-avg{ font-size:42px; }
+  input, textarea, select, .form-field input, .form-field textarea, .inline-form input{ font-size:16px !important; }
+  .inline-form{ flex-direction:column; }
+  .inline-form .btn{ width:100%; justify-content:center; }
+  .list-row{ flex-wrap:wrap; padding:12px 4px; }
+  .row-actions{ width:100%; justify-content:flex-end; }
+  .modal-backdrop{ padding:16px 12px; }
+  .modal{ padding:20px 18px; }
+  .modal-actions{ flex-direction:column-reverse; }
+  .modal-actions .btn{ width:100%; justify-content:center; }
+  .auth-card{ padding:26px 20px; }
+
+  /* Fiche match */
+  .deb-hero{ padding:20px 18px; }
+  .deb-hero::before{ width:130px; height:82px; right:-6px; }
+  .deb-title{ font-size:23px; }
+  .drive-box{ flex-direction:column; align-items:stretch; padding:16px; }
+  .drive-box .btn{ width:100%; justify-content:center; }
+  .deb-card-head{ padding:14px 16px; }
+  .table-scroll{ overflow:visible; }
+  .deb-table{ min-width:0; display:block; }
+  .deb-table thead{ display:none; }
+  .deb-table tbody{ display:block; }
+  .deb-table tbody tr{ display:block; padding:14px 16px; border-bottom:1px solid var(--border); }
+  .deb-table tbody tr:nth-child(even) td{ background:none; }
+  .deb-table tbody tr:hover td{ background:none; }
+  .deb-table td{ display:flex; justify-content:space-between; align-items:center; gap:14px; padding:6px 0; border:none; text-align:right; }
+  .deb-table td::before{ content:attr(data-label); font-family:var(--font-display); font-size:11px; letter-spacing:.4px; text-transform:uppercase; color:var(--text-faint); text-align:left; flex-shrink:0; }
+  .deb-table td[colspan]{ display:block; }
+  .deb-table td[colspan]::before{ content:none; }
+}

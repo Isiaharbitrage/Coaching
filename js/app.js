@@ -196,7 +196,7 @@ function startSubs() {
 
 /* ---------- Navigation / rendu ---------- */
 document.querySelectorAll('.nav-item').forEach(b => b.addEventListener('click', () => {
-  state.view = b.dataset.view; state.openDebriefId = null; state.qcmRun = null; render();
+  state.view = b.dataset.view; state.openDebriefId = null; state.qcmRun = null; render(); window.scrollTo(0, 0);
 }));
 
 function softRender() {
@@ -251,14 +251,14 @@ function debriefDetailHtml() {
     const clip = safeUrl(r.clip);
     return `
     <tr>
-      <td>${clip ? `<a class="clip-btn" href="${esc(clip)}" target="_blank" rel="noopener noreferrer">▶ Clip</a>` : cell(r.clip)}</td>
-      <td><span class="deb-num">${esc(r.num)}</span></td>
-      <td>${r.cds ? `<span class="cds-pill ${cdsClass(r.cds)}">${esc(r.cds)}</span>` : cell('')}</td>
-      <td>${cell(r.timing)}</td>
-      <td>${r.bonTiming ? `<span class="cds-pill ${timingClass(r.bonTiming)}">${esc(r.bonTiming)}</span>` : cell('')}</td>
-      <td>${cell(r.nature)}</td>
-      <td>${cell(r.detail)}</td>
-      <td>${cell(r.iotMeca)}</td>
+      <td data-label="Clip">${clip ? `<a class="clip-btn" href="${esc(clip)}" target="_blank" rel="noopener noreferrer">▶ Clip</a>` : cell(r.clip)}</td>
+      <td data-label="#"><span class="deb-num">${esc(r.num)}</span></td>
+      <td data-label="CDS">${r.cds ? `<span class="cds-pill ${cdsClass(r.cds)}">${esc(r.cds)}</span>` : cell('')}</td>
+      <td data-label="Timing">${cell(r.timing)}</td>
+      <td data-label="Bon timing">${r.bonTiming ? `<span class="cds-pill ${timingClass(r.bonTiming)}">${esc(r.bonTiming)}</span>` : cell('')}</td>
+      <td data-label="Nature">${cell(r.nature)}</td>
+      <td data-label="Détail">${cell(r.detail)}</td>
+      <td data-label="IOT / MÉCA">${cell(r.iotMeca)}</td>
     </tr>`;
   }).join('');
   return `

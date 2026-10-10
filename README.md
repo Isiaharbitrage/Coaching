@@ -29,3 +29,4 @@ Espace coach → **+ Nouveau play** : lien YouTube / Drive (partagé « avec le 
 
 ## 7. QCM
 L'onglet lit les QCM publiés sur ton site QCM (projet Firebase `qcmbasket`, en lecture seule). Le plus récent est « QCM de la semaine ». Chaque arbitre le passe une seule fois ; son score est enregistré ici et sa moyenne s'affiche en haut. Rien à faire de plus : publie tes QCM comme d'habitude sur ton site QCM.
+
