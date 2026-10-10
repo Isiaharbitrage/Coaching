@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Espace coaching — Arbitrage</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- Chargement initial -->
+<div id="loading-screen" class="auth-screen">
+  <div class="auth-card" style="text-align:center;">
+    <div class="auth-mark" style="justify-content:center; margin: 0 auto 18px;">
+      <span class="stripe"></span><span class="stripe"></span><span class="stripe"></span>
+    </div>
+    <h1>Espace coaching</h1>
+    <p class="auth-sub" style="margin-bottom:0;">Chargement…</p>
+  </div>
+</div>
+
+<!-- Connexion -->
+<div id="login-screen" class="auth-screen" hidden>
+  <div class="auth-card">
+    <div class="auth-mark">
+      <span class="stripe"></span><span class="stripe"></span><span class="stripe"></span>
+    </div>
+    <h1>Espace coaching</h1>
+    <p class="auth-sub">Retrouve tes debriefs, le play de la semaine et les QCM.</p>
+
+    <form id="auth-form" class="auth-form">
+      <label id="auth-name-wrap" hidden>
+        <span>Prénom (pour que ton coach te reconnaisse)</span>
+        <input type="text" id="auth-name" autocomplete="given-name">
+      </label>
+      <label>
+        <span>Adresse e-mail</span>
+        <input type="email" id="auth-email" required autocomplete="email">
+      </label>
+      <label>
+        <span>Mot de passe</span>
+        <input type="password" id="auth-password" required autocomplete="current-password" minlength="6">
+      </label>
+      <p id="auth-error" class="auth-error" hidden></p>
+      <p id="auth-info" class="auth-info" hidden></p>
+      <button type="submit" id="auth-submit" class="btn btn-primary btn-block">Se connecter</button>
+    </form>
+    <button id="auth-toggle" class="auth-toggle" type="button">Pas encore de compte ? <span>Créer mon compte</span></button>
+    <button id="auth-reset" class="auth-toggle" type="button" style="margin-top:8px;">Mot de passe oublié ?</button>
+    <p class="auth-hint" id="auth-hint" hidden>Configure d'abord les clés Firebase dans <code>js/firebase-config.js</code> — voir le README.</p>
+  </div>
+</div>
+
+<!-- Compte créé mais pas encore autorisé -->
+<div id="pending-screen" class="auth-screen" hidden>
+  <div class="auth-card" style="text-align:center;">
+    <div class="auth-mark" style="justify-content:center; margin: 0 auto 18px;">
+      <span class="stripe"></span><span class="stripe"></span><span class="stripe"></span>
+    </div>
+    <h1>Accès en attente</h1>
+    <p class="auth-sub">Ton compte <strong id="pending-email"></strong> est créé, mais ton coach ne l'a pas encore activé. Dès que c'est fait, clique sur « Vérifier à nouveau ».</p>
+    <button id="pending-check" class="btn btn-primary btn-block" type="button">Vérifier à nouveau</button>
+    <button id="pending-logout" class="auth-toggle" type="button" style="margin-top:14px;">Se déconnecter</button>
+  </div>
+</div>
+
+<!-- Application -->
+<div id="app" class="app" hidden>
+  <aside class="sidebar">
+    <div class="sidebar-top">
+      <div class="brand">
+        <span class="stripe"></span><span class="stripe"></span><span class="stripe"></span>
+        <span class="brand-name">Coaching</span>
+      </div>
+    </div>
+    <nav class="nav">
+      <button class="nav-item active" data-view="debriefs"><span class="nav-num">01</span> Mes debriefs</button>
+      <button class="nav-item" data-view="plays"><span class="nav-num">02</span> Play de la semaine</button>
+      <button class="nav-item" data-view="qcm"><span class="nav-num">03</span> QCM</button>
+      <button class="nav-item" data-view="coach" id="coach-nav" hidden><span class="nav-num">04</span> Espace coach</button>
+    </nav>
+    <div class="sidebar-bottom">
+      <div class="user-chip"><span id="user-email">—</span></div>
+      <button id="logout-btn" class="btn-text" type="button">Se déconnecter</button>
+    </div>
+  </aside>
+  <main class="main">
+    <div id="view-root"></div>
+  </main>
+</div>
+
+<!-- Modale générique -->
+<div id="modal-backdrop" class="modal-backdrop" hidden>
+  <div id="modal" class="modal"></div>
+</div>
+
+<div id="toast" class="toast" hidden></div>
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>

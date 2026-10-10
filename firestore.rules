@@ -1,0 +1,49 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ⚠️ Remplace par TON adresse e-mail de coach (en minuscules), la même que dans js/firebase-config.js
+    function isCoach() {
+      return request.auth != null
+        && request.auth.token.email != null
+        && request.auth.token.email.lower() == 'isiah.schmidt@hotmail.fr';
+    }
+
+    // Arbitre dont l'e-mail figure dans la liste "allowed" tenue par le coach
+    function isAllowed() {
+      return request.auth != null
+        && request.auth.token.email != null
+        && exists(/databases/$(database)/documents/allowed/$(request.auth.token.email.lower()));
+    }
+
+    function isMember() {
+      return isCoach() || isAllowed();
+    }
+
+    // Liste des arbitres autorisés (identifiant du document = e-mail en minuscules)
+    match /allowed/{email} {
+      allow read: if isCoach()
+        || (request.auth != null && request.auth.token.email != null && request.auth.token.email.lower() == email);
+      allow write: if isCoach();
+    }
+
+    // Debriefs publiés depuis le site d'arbitrage : lecture pour tous les membres, écriture coach
+    match /debriefs/{id} {
+      allow read: if isMember();
+      allow write: if isCoach();
+    }
+
+    // Play de la semaine
+    match /plays/{id} {
+      allow read: if isMember();
+      allow write: if isCoach();
+    }
+
+    // Résultats de QCM : chaque arbitre n'écrit et ne lit que les siens, le coach voit tout
+    match /qcmResults/{id} {
+      allow read: if isCoach() || (isAllowed() && resource.data.uid == request.auth.uid);
+      allow create: if isMember() && request.resource.data.uid == request.auth.uid;
+      allow update, delete: if isCoach();
+    }
+  }
+}
