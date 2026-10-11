@@ -240,7 +240,7 @@ function debriefListHtml() {
       <span class="chev">›</span>
     </div>`).join('');
   return `
-    <div class="view-header"><div><h2 class="view-title">Debriefing Perso NM1</h2></div></div>
+    <div class="view-header"><div><h2 class="view-title">Debriefing Isiah NM1</h2></div></div>
     <div class="panel">${rows || '<div class="empty"><strong>Aucun debrief pour l\'instant</strong>Ils apparaîtront ici dès que ton coach en publiera.</div>'}</div>`;
 }
 
@@ -259,11 +259,18 @@ function timingClass(v) {
 }
 const cell = (v) => v ? esc(v) : '<span class="muted-cell">—</span>';
 
+// Seules les lignes utiles au debrief sont montrées : INC, IC, MC et les CC liés à une faute
+function keepRow(r) {
+  const cds = String(r.cds || '').trim().toUpperCase();
+  if (cds === 'INC' || cds === 'IC' || cds === 'MC') return true;
+  return cds === 'CC' && String(r.nature || '').trim().toLowerCase() === 'faute';
+}
+
 function debriefDetailHtml() {
   const d = state.debriefs.find(x => x.id === state.openDebriefId);
   if (!d) { state.openDebriefId = null; return debriefListHtml(); }
   const link = safeUrl(d.driveLink);
-  const rows = d.rows || [];
+  const rows = (d.rows || []).filter(keepRow);
   const body = rows.map(r => {
     const clip = safeUrl(r.clip);
     return `
@@ -281,7 +288,7 @@ function debriefDetailHtml() {
   return `
     <button class="btn btn-ghost deb-back" data-action="back-debriefs">← Tous les matchs</button>
     <div class="deb-hero">
-      <div class="deb-kicker">Debriefing Perso NM1</div>
+      <div class="deb-kicker">Debriefing Isiah NM1</div>
       <h2 class="deb-title">${esc(d.title || 'Debrief')}</h2>
       <div class="deb-pills">
         ${d.date ? `<span class="pill">${fmtDate(d.date)}</span>` : ''}
