@@ -482,3 +482,23 @@ input, select, textarea{ font-family: inherit; }
   .deb-table td[colspan]{ display:block; }
   .deb-table td[colspan]::before{ content:none; }
 }
+
+/* ---------- Coaching individuel ---------- */
+.seance-hero{ margin-bottom:18px; }
+.seance-hero .deb-title{ margin-bottom:0; }
+.seance-blocks{ display:flex; flex-direction:column; gap:14px; }
+.seance-block{ background:var(--bg-elevated); border:1px solid var(--border); border-left:3px solid var(--accent); border-radius:10px; padding:16px 18px; }
+.panel .seance-block{ background:var(--bg); }
+.seance-block h4{ font-size:14.5px; letter-spacing:.3px; margin-bottom:10px; display:flex; gap:8px; align-items:center; }
+.attach-list{ display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
+.seance-old{ background:var(--bg-elevated); border:1px solid var(--border); border-radius:10px; margin-bottom:10px; }
+.seance-old summary{ cursor:pointer; padding:14px 18px; font-family:var(--font-display); font-size:15px; list-style:none; }
+.seance-old summary::before{ content:'▸ '; color:var(--accent-2); }
+.seance-old[open] summary::before{ content:'▾ '; }
+.seance-old .seance-blocks{ padding:0 14px 14px; }
+.modal textarea{ width:100%; }
+@media (max-width: 880px){
+  .seance-block{ padding:14px; }
+  .nav-short{ font-size:10px; }
+  .view-header .row-actions{ width:100%; }
+}

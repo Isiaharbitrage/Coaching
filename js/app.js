@@ -64,7 +64,7 @@ if (configured) {
 /* ---------- État ---------- */
 const state = {
   user: null, isCoach: false,
-  debriefs: [], plays: [], qcmResults: [], allowed: [], quizzes: [], qcmRun: null, posts: [], replies: [], draft: { text: '', video: '', image: '' },
+  debriefs: [], plays: [], qcmResults: [], allowed: [], quizzes: [], qcmRun: null, posts: [], replies: [], seances: [], ficheEmail: null, ficheSeances: [], draft: { text: '', video: '', image: '' },
   view: 'debriefs', openDebriefId: null, selectedPlayId: null
 };
 let unsubs = [];
@@ -160,13 +160,16 @@ async function enterApp(user) {
   }
   $('user-email').textContent = user.displayName ? `${user.displayName} · ${user.email}` : user.email;
   $('coach-nav').hidden = !state.isCoach;
+  $('perso-nav').hidden = state.isCoach;
   if (!state.isCoach && state.view === 'coach') state.view = 'debriefs';
+  if (state.isCoach && state.view === 'perso') state.view = 'debriefs';
   startSubs();
   showScreen('app');
   render();
 }
 
-function stopSubs() { unsubs.forEach(u => { try { u(); } catch { /* */ } }); unsubs = []; }
+let ficheUnsub = null;
+function stopSubs() { unsubs.forEach(u => { try { u(); } catch { /* */ } }); unsubs = []; if (ficheUnsub) { try { ficheUnsub(); } catch { /* */ } ficheUnsub = null; } state.ficheEmail = null; state.ficheSeances = []; }
 
 function startSubs() {
   stopSubs();
@@ -186,6 +189,12 @@ function startSubs() {
   unsubs.push(onSnapshot(collection(db, 'forumReplies'), (s) => {
     state.replies = s.docs.map(d => ({ id: d.id, ...d.data() })); softRender();
   }, onErr));
+  if (!state.isCoach) {
+    const mail = (state.user.email || '').toLowerCase();
+    unsubs.push(onSnapshot(collection(db, 'fiches', mail, 'seances'), (s) => {
+      state.seances = s.docs.map(d => ({ id: d.id, ...d.data() })); softRender();
+    }, onErr));
+  }
   const qres = state.isCoach
     ? collection(db, 'qcmResults')
     : query(collection(db, 'qcmResults'), where('uid', '==', state.user.uid));
@@ -219,6 +228,7 @@ function render() {
   else if (state.view === 'plays') root.innerHTML = playsHtml();
   else if (state.view === 'qcm') root.innerHTML = qcmHtml();
   else if (state.view === 'forum') root.innerHTML = forumHtml();
+  else if (state.view === 'perso' && !state.isCoach) root.innerHTML = persoHtml();
   else if (state.view === 'coach' && state.isCoach) root.innerHTML = coachHtml();
 }
 
@@ -455,14 +465,97 @@ function postHtml(p) {
   </article>`;
 }
 
+/* ---------- Coaching individuel ---------- */
+const BLOCKS = [
+  { key: 'compteRendu', links: 'liensCompteRendu', title: 'Compte rendu de séance', ico: '📝' },
+  { key: 'devoirs', links: 'liensDevoirs', title: 'Devoirs pour la prochaine fois', ico: '📚' },
+  { key: 'points', links: 'liensPoints', title: 'Points de concentration — prochains matchs', ico: '🎯' }
+];
+const sortSeances = (list) => [...list].sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
+
+function linksHtml(arr) {
+  const items = (arr || []).filter(l => safeUrl(l.url));
+  if (!items.length) return '';
+  return `<div class="attach-list">${items.map(l => `<a class="clip-btn" href="${esc(safeUrl(l.url))}" target="_blank" rel="noopener noreferrer">🔗 ${esc(l.label || 'Pièce jointe')}</a>`).join('')}</div>`;
+}
+function seanceBlocksHtml(s) {
+  return `<div class="seance-blocks">${BLOCKS.map(b => {
+    const txt = s[b.key], lk = linksHtml(s[b.links]);
+    if (!txt && !lk) return '';
+    return `<section class="seance-block"><h4><span>${b.ico}</span> ${b.title}</h4>${txt ? `<div class="comment-box">${esc(txt)}</div>` : ''}${lk}</section>`;
+  }).join('') || '<div class="empty" style="padding:14px 0;">Rien de renseigné pour cette séance.</div>'}</div>`;
+}
+function persoHtml() {
+  const list = sortSeances(state.seances);
+  const [last, ...older] = list;
+  return `
+    <div class="view-header"><div><h2 class="view-title">Coaching individuel</h2></div></div>
+    ${!last ? '<div class="panel"><div class="empty"><strong>Pas encore de séance</strong>Ton compte rendu, tes devoirs et tes points de concentration apparaîtront ici.</div></div>' : `
+      <div class="deb-hero seance-hero">
+        <div class="deb-kicker">Dernière séance</div>
+        <h2 class="deb-title">${fmtDate(last.date)}</h2>
+      </div>
+      ${seanceBlocksHtml(last)}
+      ${older.length ? `<h3 class="replies-title">Séances précédentes</h3>${older.map(s => `<details class="seance-old"><summary>${fmtDate(s.date)}</summary>${seanceBlocksHtml(s)}</details>`).join('')}` : ''}`}`;
+}
+
+function openFiche(email) {
+  if (ficheUnsub) { try { ficheUnsub(); } catch { /* */ } ficheUnsub = null; }
+  state.ficheEmail = email; state.ficheSeances = [];
+  ficheUnsub = onSnapshot(collection(db, 'fiches', email, 'seances'), (s) => {
+    state.ficheSeances = s.docs.map(d => ({ id: d.id, ...d.data() })); softRender();
+  }, (e) => { console.error(e); showToast('Erreur de lecture de la fiche.'); });
+  render(); window.scrollTo(0, 0);
+}
+function closeFiche() {
+  if (ficheUnsub) { try { ficheUnsub(); } catch { /* */ } ficheUnsub = null; }
+  state.ficheEmail = null; state.ficheSeances = []; render();
+}
+function ficheCoachHtml() {
+  const a = state.allowed.find(x => x.id === state.ficheEmail);
+  const list = sortSeances(state.ficheSeances);
+  return `
+    <button class="btn btn-ghost deb-back" data-action="close-fiche">← Espace coach</button>
+    <div class="view-header"><div><h2 class="view-title">${esc(a?.name || state.ficheEmail)}</h2><p class="view-sub">${esc(state.ficheEmail)} — fiche visible uniquement par cet arbitre.</p></div>
+      <button class="btn btn-primary" data-action="new-seance">+ Nouvelle séance</button></div>
+    ${list.length ? list.map(s => `<div class="panel"><div class="panel-title"><span>Séance du ${fmtDate(s.date)}</span>
+      <span class="row-actions"><button class="btn btn-ghost" data-action="edit-seance" data-id="${esc(s.id)}">Modifier</button>
+      <button class="btn btn-ghost btn-danger" data-action="delete-seance" data-id="${esc(s.id)}">Supprimer</button></span></div>
+      ${seanceBlocksHtml(s)}</div>`).join('') : '<div class="panel"><div class="empty"><strong>Aucune séance</strong>Ajoute la première avec « + Nouvelle séance ».</div></div>'}`;
+}
+const linksToText = (arr) => (arr || []).map(l => l.label && l.label !== 'Pièce jointe' ? `${l.label} | ${l.url}` : l.url).join('\n');
+function parseLinks(txt) {
+  return String(txt || '').split('\n').map(l => l.trim()).filter(Boolean).map(l => {
+    const i = l.lastIndexOf('|');
+    const label = i > -1 ? l.slice(0, i).trim() : '';
+    const url = safeUrl(i > -1 ? l.slice(i + 1).trim() : l);
+    return url ? { label: label.slice(0, 80), url } : null;
+  }).filter(Boolean);
+}
+function seanceModal(s) {
+  openModal(`
+    <h3 class="modal-title">${s ? 'Modifier la séance' : 'Nouvelle séance'}</h3>
+    <p class="modal-sub">Pour les pièces jointes : un lien par ligne (Drive, vidéo…), avec ou sans nom : <em>Mon clip | https://…</em></p>
+    <form data-form="save-seance" data-id="${s ? esc(s.id) : ''}">
+      <div class="form-field"><label>Date de la séance</label><input type="date" name="date" value="${esc(s?.date || todayISO())}" required></div>
+      ${BLOCKS.map(b => `
+        <div class="form-field"><label>${b.ico} ${b.title}</label><textarea name="${b.key}" rows="4">${esc(s?.[b.key] || '')}</textarea></div>
+        <div class="form-field"><label>Pièces jointes (liens)</label><textarea name="${b.links}" rows="2" placeholder="https://…">${esc(linksToText(s?.[b.links]))}</textarea></div>`).join('')}
+      <div class="modal-actions"><button type="button" class="btn btn-ghost" data-action="close-modal">Annuler</button>
+      <button type="submit" class="btn btn-primary">Enregistrer</button></div>
+    </form>`);
+}
+
 /* ---------- Espace coach ---------- */
 function coachHtml() {
+  if (state.ficheEmail) return ficheCoachHtml();
   const refs = state.allowed.map(a => {
     const res = state.qcmResults.filter(r => (r.email || '').toLowerCase() === a.id);
     const avg = avgOf(res);
     return `<div class="list-row">
       <div><div>${esc(a.name || a.id)}</div><div class="sub">${esc(a.id)} · ${avg === null ? 'aucun QCM' : `moyenne ${fmtAvg(avg)}/10 (${res.length} QCM)`}</div></div>
-      <button class="btn btn-ghost btn-danger" data-action="remove-allowed" data-id="${esc(a.id)}">Retirer</button></div>`;
+      <div class="row-actions"><button class="btn btn-ghost" data-action="open-fiche" data-id="${esc(a.id)}">Fiche individuelle</button>
+      <button class="btn btn-ghost btn-danger" data-action="remove-allowed" data-id="${esc(a.id)}">Retirer</button></div></div>`;
   }).join('');
   const plays = state.plays.map(p => `<div class="list-row">
       <div><div>${esc(p.title || 'Play')}</div><div class="sub">${fmtDate(p.date)}</div></div>
@@ -544,6 +637,11 @@ document.addEventListener('click', async (ev) => {
       await Promise.all(state.replies.filter(r => r.postId === id).map(r => deleteDoc(doc(db, 'forumReplies', r.id))));
       await deleteDoc(doc(db, 'forumPosts', id)); showToast('Publication supprimée'); } }
     else if (a === 'delete-reply') { if (confirm('Supprimer ce commentaire ?')) { await deleteDoc(doc(db, 'forumReplies', id)); showToast('Commentaire supprimé'); } }
+    else if (a === 'open-fiche') openFiche(id);
+    else if (a === 'close-fiche') closeFiche();
+    else if (a === 'new-seance') seanceModal(null);
+    else if (a === 'edit-seance') seanceModal(state.ficheSeances.find(x => x.id === id));
+    else if (a === 'delete-seance') { if (confirm('Supprimer cette séance ?')) { await deleteDoc(doc(db, 'fiches', state.ficheEmail, 'seances', id)); showToast('Séance supprimée'); } }
     else if (a === 'close-modal') closeModal();
     else if (a === 'new-play') playModal(null);
     else if (a === 'edit-play') playModal(state.plays.find(p => p.id === id));
@@ -582,6 +680,13 @@ document.addEventListener('submit', async (ev) => {
         text, createdAt: serverTimestamp()
       });
       render();
+    } else if (form.dataset.form === 'save-seance') {
+      const data = { date: f.date };
+      BLOCKS.forEach(b => { data[b.key] = String(f[b.key] || '').trim(); data[b.links] = parseLinks(f[b.links]); });
+      const col = collection(db, 'fiches', state.ficheEmail, 'seances');
+      if (form.dataset.id) await updateDoc(doc(col, form.dataset.id), data);
+      else await addDoc(col, { ...data, createdAt: serverTimestamp() });
+      closeModal(); showToast('Séance enregistrée');
     } else if (form.dataset.form === 'save-play') {
       const data = { title: f.title.trim(), date: f.date, videoUrl: (f.videoUrl || '').trim(), comment: f.comment || '' };
       if (data.videoUrl && !safeUrl(data.videoUrl)) { showToast('Lien vidéo invalide'); return; }

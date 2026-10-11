@@ -68,5 +68,13 @@ service cloud.firestore {
       allow delete: if isCoach() || (isMember() && resource.data.uid == request.auth.uid);
       allow update: if false;
     }
+
+    // Coaching individuel : fiche personnelle de chaque arbitre (identifiée par son e-mail)
+    // Lecture : uniquement l'arbitre concerné et le coach. Écriture : coach uniquement.
+    match /fiches/{email}/seances/{id} {
+      allow read: if isCoach()
+        || (isAllowed() && request.auth.token.email.lower() == email);
+      allow write: if isCoach();
+    }
   }
 }

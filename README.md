@@ -32,3 +32,6 @@ L'onglet lit les QCM publiés sur ton site QCM (projet Firebase `qcmbasket`, en 
 
 ## 8. Forum
 Les arbitres publient du texte, une image (réduite automatiquement) et/ou un lien vidéo (YouTube, Drive, Vimeo), et commentent sous chaque publication. Les vidéos ne sont pas envoyées sur le site : on colle un lien. Republie `firestore.rules` dans Firebase après chaque mise à jour de ce fichier.
+
+## 9. Coaching individuel
+Chaque arbitre voit uniquement sa propre fiche (onglet « Coaching individuel »). Toi : Espace coach → « Fiche individuelle » à côté d'un arbitre → « + Nouvelle séance » (compte rendu, devoirs, points de concentration, avec liens en pièces jointes). Republie `firestore.rules` : l'isolation entre arbitres vient de ces règles.
